@@ -1,0 +1,22 @@
+# Secrets / environment
+.env
+.env.*
+
+env/
+.claude
+
+# Local SQLite databases
+*.db
+*.db.bak*
+
+# Python
+__pycache__/
+*.py[cod]
+env/
+venv/
+.venv/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
