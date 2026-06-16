@@ -1,4 +1,5 @@
 import os
+import socket
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
@@ -52,10 +53,20 @@ def send_email(to_email, subject, body):
         # Convert the message to a string
         msg = message.as_string()
         
-        # Connect to SMTP server and send email
-        print(f"Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
-        smtp = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        # Connect to SMTP server and send email.
+        # Resolve the IPv4 (A record) address explicitly and connect to it,
+        # because Render containers are IPv4-only and the default resolver
+        # prefers Gmail's IPv6 address, which fails with
+        # "[Errno 101] Network is unreachable".
+        ipv4_addr = socket.getaddrinfo(
+            SMTP_SERVER, SMTP_PORT, socket.AF_INET, socket.SOCK_STREAM
+        )[0][4][0]
+
+        print(f"Connecting to {SMTP_SERVER} ({ipv4_addr}):{SMTP_PORT}...")
+        smtp = smtplib.SMTP()
         smtp.set_debuglevel(1)  # Enable verbose logging
+        smtp.connect(ipv4_addr, SMTP_PORT)
+        smtp._host = SMTP_SERVER  # verify TLS cert against the hostname, not the IP
         smtp.ehlo()
         smtp.starttls()
         
