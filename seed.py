@@ -5,12 +5,12 @@ Run with:  python seed.py
 """
 from datetime import datetime
 from db.models import (
-    SessionLocal, Base, engine,
+    SessionLocal,
     User, MentorProfile, FundingProgram, Event,
 )
 from utils.constants import ROLE_MENTOR, ROLE_ADMIN
 
-Base.metadata.create_all(bind=engine)
+# Schema is managed by Alembic — run `alembic upgrade head` before seeding.
 
 ADMIN_EMAIL = "admin@cden.demo"
 ADMIN_PASSWORD = "admin-demo-password"

@@ -80,13 +80,16 @@ Proposed Sprint Scope:
 - Manage matches
 - Manage funding programs
 
+10. Notifications
+- Email Push notifications
+- Email the mentor on a new reques
+- Email the founder on accept
+
 Out of Scope:
 - Booking system
-- Notifications
 - Feedback loops
 - Community feed
 - Cohorts
 - Analytics
 - Partner dashboards
 - Government reporting
-- Mobile app

@@ -51,6 +51,46 @@ def recommend_mentors(founder, mentors, limit=5):
     return results[:limit]
 
 
+def score_founder_for_mentor(mentor, founder):
+    """Score a founder against a mentor (reverse of score_mentor), with reasons
+    phrased for the mentor. Returns (score, reasons)."""
+    score = 0
+    reasons = []
+
+    m_sectors = set(_as_list(mentor.sectors))
+    f_sectors = set(_as_list(founder.sectors))
+    shared = m_sectors & f_sectors
+    if shared:
+        score += 3 * len(shared)
+        reasons.append(f"Building in your sector(s): {', '.join(sorted(shared))}")
+
+    if founder.province and founder.province in _as_list(mentor.provinces):
+        score += 2
+        reasons.append(f"Based in {founder.province}, a region you cover")
+
+    if mentor.shares_lived_experience:
+        score += 2
+        reasons.append("You can offer shared lived experience")
+
+    if founder.business_stage:
+        reasons.append(f"At the {founder.business_stage} stage")
+
+    return score, reasons
+
+
+def recommend_founders(mentor, founders, limit=10):
+    """Rank onboarded founders this mentor is well-suited to help, best first."""
+    results = []
+    for founder in founders:
+        if not founder.is_onboarded:
+            continue
+        score, reasons = score_founder_for_mentor(mentor, founder)
+        results.append((score, reasons, founder))
+
+    results.sort(key=lambda r: r[0], reverse=True)
+    return results[:limit]
+
+
 def score_funding(founder, program):
     """Score a funding program against a founder. Returns (score, reasons).
 

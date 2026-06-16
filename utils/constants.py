@@ -104,3 +104,10 @@ ROLE_FOUNDER = "founder"
 ROLE_MENTOR = "mentor"
 ROLE_ADMIN = "admin"
 ROLES = (ROLE_FOUNDER, ROLE_MENTOR, ROLE_ADMIN)
+
+# Lifecycle of a founder<->mentor match
+MATCH_SUGGESTED = "suggested"   # proposed by the algorithm/admin
+MATCH_REQUESTED = "requested"   # founder asked to connect
+MATCH_CONFIRMED = "confirmed"   # mentor (or admin) accepted -> active pairing
+MATCH_DECLINED = "declined"     # mentor/admin declined
+MATCH_STATUSES = (MATCH_SUGGESTED, MATCH_REQUESTED, MATCH_CONFIRMED, MATCH_DECLINED)

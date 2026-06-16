@@ -53,8 +53,7 @@ for item in os.listdir(sqladmin_static_path):
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+# Schema is managed by Alembic migrations (run: alembic upgrade head)
 
 
 # Include routers

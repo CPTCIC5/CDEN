@@ -1,18 +1,24 @@
 from typing import List
 from datetime import datetime
-from fastapi import APIRouter, Depends, status, HTTPException, Request
+from fastapi import APIRouter, Depends, status, HTTPException, Request, BackgroundTasks
+from sqlalchemy import asc
 from sqlalchemy.orm import Session
 
-from db.models import get_db, User, FounderProfile, MentorProfile, MentorInvite
+from db.models import get_db, User, FounderProfile, MentorProfile, MentorInvite, Event, MentorMatch
 from schemas.mentor_schema import (
     MentorProfileResponse,
     MentorRecommendation,
     MentorOnboardingModel,
+    MentorAvailabilityUpdate,
     InviteAccept,
 )
+from schemas.dashboard_schema import MentorDashboardResponse, FounderMatch
+from schemas.match_schema import MatchActionUpdate, MentorSideMatch
 from utils.auth import get_current_user, create_session
-from utils.matching import recommend_mentors
-from utils.constants import ROLE_MENTOR, ROLE_FOUNDER
+from utils.matching import recommend_mentors, recommend_founders
+from utils.matches import to_mentor_side
+from utils.email_sender import send_match_confirmed_email
+from utils.constants import ROLE_MENTOR, ROLE_FOUNDER, MATCH_CONFIRMED, MATCH_DECLINED, MATCH_REQUESTED
 
 router = APIRouter(prefix="/api/mentors", tags=["mentors"])
 
@@ -180,6 +186,122 @@ async def get_my_mentor_profile(
     if not profile:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor profile not found")
     return profile
+
+
+@router.get("/dashboard", response_model=MentorDashboardResponse)
+async def mentor_dashboard(
+    founder_limit: int = 10,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Aggregate the mentor's home: their profile, founders they're well-suited
+    to help, and upcoming events."""
+    if current_user.role != ROLE_MENTOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="The mentor dashboard is only available to mentor accounts.",
+        )
+    mentor = db.query(MentorProfile).filter(MentorProfile.user_id == current_user.id).first()
+    if not mentor or not mentor.is_onboarded:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Complete your mentor onboarding to view your dashboard.",
+        )
+
+    ranked = recommend_founders(mentor, db.query(FounderProfile).all(), limit=founder_limit)
+
+    upcoming_events = db.query(Event).filter(
+        Event.is_active == True,
+        (Event.start_at == None) | (Event.start_at >= datetime.now()),
+    ).order_by(asc(Event.start_at)).all()
+
+    matches = db.query(MentorMatch).filter(
+        MentorMatch.mentor_user_id == current_user.id
+    ).all()
+
+    return MentorDashboardResponse(
+        mentor=mentor,
+        matched_founders=[
+            FounderMatch(founder=f, score=s, match_reasons=r)
+            for s, r, f in ranked
+        ],
+        matches=[to_mentor_side(m, db) for m in matches],
+        events=upcoming_events,
+    )
+
+
+@router.patch("/availability", response_model=MentorProfileResponse)
+async def update_availability(
+    data: MentorAvailabilityUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mentor toggles whether they're currently accepting new founders.
+    When off, they stop appearing in founders' recommendations."""
+    if current_user.role != ROLE_MENTOR:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only mentors can change their availability.",
+        )
+    mentor = db.query(MentorProfile).filter(MentorProfile.user_id == current_user.id).first()
+    if not mentor:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mentor profile not found")
+
+    mentor.is_accepting = data.is_accepting
+    db.commit()
+    db.refresh(mentor)
+    return mentor
+
+
+@router.get("/matches", response_model=List[MentorSideMatch])
+async def mentor_matches(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List this mentor's connections and incoming requests."""
+    if current_user.role != ROLE_MENTOR:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Only mentors have founder connections here.")
+    matches = db.query(MentorMatch).filter(
+        MentorMatch.mentor_user_id == current_user.id
+    ).all()
+    return [to_mentor_side(m, db) for m in matches]
+
+
+@router.patch("/matches/{match_id}", response_model=MentorSideMatch)
+async def respond_to_match(
+    match_id: int,
+    data: MatchActionUpdate,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mentor confirms or declines a founder's request."""
+    if current_user.role != ROLE_MENTOR:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Only mentors can respond to requests.")
+    match = db.query(MentorMatch).filter(MentorMatch.id == match_id).first()
+    if not match or match.mentor_user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Match not found")
+    if match.status != MATCH_REQUESTED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Can only respond to a pending request (current status: {match.status}).",
+        )
+
+    match.status = MATCH_CONFIRMED if data.action == "confirm" else MATCH_DECLINED
+    db.commit()
+    db.refresh(match)
+
+    # On accept, notify the founder (after the response is sent)
+    if match.status == MATCH_CONFIRMED:
+        founder_user = db.query(User).filter(User.id == match.founder_user_id).first()
+        mentor = db.query(MentorProfile).filter(MentorProfile.user_id == current_user.id).first()
+        mentor_label = (mentor.full_name if mentor and mentor.full_name else None) or current_user.email
+        if founder_user:
+            background_tasks.add_task(send_match_confirmed_email, founder_user.email, mentor_label)
+
+    return to_mentor_side(match, db)
 
 
 @router.get("/{mentor_id}", response_model=MentorProfileResponse)

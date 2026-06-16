@@ -60,6 +60,10 @@ class MentorOnboardingModel(BaseModel):
         return v
 
 
+class MentorAvailabilityUpdate(BaseModel):
+    is_accepting: bool
+
+
 class InviteCreate(BaseModel):
     email: EmailStr
 

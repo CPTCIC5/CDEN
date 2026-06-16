@@ -155,6 +155,46 @@ def send_mentor_invite_email(to_email, invite_link):
     return send_email(to_email, subject, body)
 
 
+def send_mentor_request_email(to_email, founder_label):
+    """Notify a mentor that a founder has requested to connect.
+
+    Args:
+        to_email: The mentor's email address
+        founder_label: A name to show for the founder (business or full name)
+    """
+    subject = "A founder has requested you as a mentor on CDEN"
+    body = f"""
+    <html>
+    <body>
+        <h2>New Mentor Request</h2>
+        <p><strong>{founder_label}</strong> has requested to connect with you as a mentor on CDEN.</p>
+        <p>Log in to your dashboard to review the request and accept or decline it.</p>
+    </body>
+    </html>
+    """
+    return send_email(to_email, subject, body)
+
+
+def send_match_confirmed_email(to_email, mentor_label):
+    """Notify a founder that a mentor has accepted their request.
+
+    Args:
+        to_email: The founder's email address
+        mentor_label: A name to show for the mentor
+    """
+    subject = "Your mentor request was accepted on CDEN"
+    body = f"""
+    <html>
+    <body>
+        <h2>You're Connected!</h2>
+        <p><strong>{mentor_label}</strong> has accepted your request and is now your mentor on CDEN.</p>
+        <p>Log in to your dashboard to see the connection and reach out.</p>
+    </body>
+    </html>
+    """
+    return send_email(to_email, subject, body)
+
+
 def main():
     """CLI interface for testing email functionality"""
     parser = argparse.ArgumentParser(description='Send test emails via command line')

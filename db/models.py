@@ -5,7 +5,8 @@ from datetime import datetime
 from sqlalchemy import create_engine
 from passlib.context import CryptContext
 from dotenv import load_dotenv
-from utils.constants import ROLE_FOUNDER
+from sqlalchemy import UniqueConstraint
+from utils.constants import ROLE_FOUNDER, MATCH_REQUESTED
 
 load_dotenv()
 
@@ -233,3 +234,29 @@ class Event(Base):
 
     def __repr__(self):
         return self.title
+
+
+class MentorMatch(Base):
+    """A persisted founder<->mentor connection and its lifecycle status.
+
+    Identified by the two users so it survives profile edits. A given founder
+    and mentor can only be paired once (unique constraint).
+    """
+    __tablename__ = 'mentor_matches'
+    __table_args__ = (
+        UniqueConstraint('founder_user_id', 'mentor_user_id', name='uq_founder_mentor'),
+    )
+
+    id = Column(Integer, primary_key=True)
+    founder_user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
+    mentor_user_id = Column(Integer, ForeignKey('users.id', ondelete="CASCADE"), nullable=False)
+
+    status = Column(String(20), default=MATCH_REQUESTED, nullable=False)  # one of MATCH_STATUSES
+    is_admin_override = Column(Boolean, default=False)
+    created_by = Column(Integer, ForeignKey('users.id', ondelete="SET NULL"), nullable=True)
+
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f"MentorMatch f{self.founder_user_id}-m{self.mentor_user_id} ({self.status})"

@@ -8,7 +8,7 @@ from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
-from db.models import SessionLocal, User, FounderProfile, MentorProfile, FundingProgram, MentorInvite, Event
+from db.models import SessionLocal, User, FounderProfile, MentorProfile, FundingProgram, MentorInvite, Event, MentorMatch
 from utils.auth import SECRET_KEY
 from utils.constants import ROLE_ADMIN
 from utils.invites import create_mentor_invite, invite_link
@@ -91,6 +91,16 @@ class EventAdmin(ModelView, model=Event):
     column_sortable_list = [Event.id, Event.title, Event.start_at]
 
 
+class MentorMatchAdmin(ModelView, model=MentorMatch):
+    name = "Match"
+    name_plural = "Matches"
+    column_list = [
+        MentorMatch.id, MentorMatch.founder_user_id, MentorMatch.mentor_user_id,
+        MentorMatch.status, MentorMatch.is_admin_override, MentorMatch.created_at,
+    ]
+    column_sortable_list = [MentorMatch.id, MentorMatch.status]
+
+
 class MentorInviteAdmin(ModelView, model=MentorInvite):
     name = "Mentor Invite"
     name_plural = "Mentor Invites"
@@ -166,6 +176,7 @@ def setup_admin(app, engine):
     admin.add_view(MentorProfileAdmin)
     admin.add_view(FundingProgramAdmin)
     admin.add_view(EventAdmin)
+    admin.add_view(MentorMatchAdmin)
     admin.add_view(MentorInviteAdmin)
     admin.add_view(MentorInviteActionView)
     return admin
