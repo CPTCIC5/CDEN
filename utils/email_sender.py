@@ -16,8 +16,10 @@ SMTP_PORT = int(os.getenv("EMAIL_PORT", "2525"))
 SMTP_USERNAME = os.getenv("EMAIL_USER")
 SMTP_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
-# Use the authenticated username as sender (this is what Elastic Email allows)
-SENDER_EMAIL = SMTP_USERNAME
+# With Resend the SMTP username is literally "resend", which is not a valid
+# sender address. The actual From address comes from EMAIL_FROM and must be on a
+# domain verified in Resend (onboarding@resend.dev works out of the box).
+SENDER_EMAIL = os.getenv("EMAIL_FROM") or SMTP_USERNAME
 
 def generate_otp(length=6):
     """Generate a random OTP of specified length"""
@@ -52,13 +54,19 @@ def send_email(to_email, subject, body):
         # Convert the message to a string
         msg = message.as_string()
         
-        # Connect to SMTP server and send email
+        # Connect to SMTP server and send email.
+        # Port 465 uses implicit TLS (SMTP_SSL); other ports use STARTTLS.
         print(f"Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
-        smtp = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-        smtp.set_debuglevel(1)  # Enable verbose logging
-        smtp.ehlo()
-        smtp.starttls()
-        
+        if SMTP_PORT == 465:
+            smtp = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
+            smtp.set_debuglevel(1)  # Enable verbose logging
+            smtp.ehlo()
+        else:
+            smtp = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+            smtp.set_debuglevel(1)  # Enable verbose logging
+            smtp.ehlo()
+            smtp.starttls()
+
         print(f"Logging in as {SMTP_USERNAME}...")
         smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
         
