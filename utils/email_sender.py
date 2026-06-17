@@ -1,7 +1,5 @@
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
 from dotenv import load_dotenv
 import random
 import string
@@ -10,16 +8,17 @@ import argparse
 # Load environment variables
 load_dotenv()
 
-# Email configuration
-SMTP_SERVER = os.getenv("EMAIL_HOST")
-SMTP_PORT = int(os.getenv("EMAIL_PORT", "2525"))
-SMTP_USERNAME = os.getenv("EMAIL_USER")
-SMTP_PASSWORD = os.getenv("EMAIL_PASSWORD")
+# Email configuration.
+# We send via Resend's HTTP API (port 443) instead of SMTP because hosts like
+# Render block outbound SMTP ports (25/465/587). HTTP works everywhere.
+RESEND_API_URL = "https://api.resend.com/emails"
+# The Resend API key. We accept a dedicated RESEND_API_KEY but fall back to
+# EMAIL_PASSWORD, which already holds the key from the SMTP config.
+RESEND_API_KEY = os.getenv("RESEND_API_KEY") or os.getenv("EMAIL_PASSWORD")
 
-# With Resend the SMTP username is literally "resend", which is not a valid
-# sender address. The actual From address comes from EMAIL_FROM and must be on a
-# domain verified in Resend (onboarding@resend.dev works out of the box).
-SENDER_EMAIL = os.getenv("EMAIL_FROM") or SMTP_USERNAME
+# The From address. Must be on a domain verified in Resend
+# (e.g. noreply@powerspeak.app). onboarding@resend.dev works for test sends.
+SENDER_EMAIL = os.getenv("EMAIL_FROM")
 
 def generate_otp(length=6):
     """Generate a random OTP of specified length"""
@@ -27,56 +26,47 @@ def generate_otp(length=6):
 
 def send_email(to_email, subject, body):
     """
-    Send an email using SMTP configuration
-    
+    Send an email via the Resend HTTP API.
+
+    Uses HTTPS (port 443) rather than SMTP so it works on hosts that block
+    outbound SMTP ports (e.g. Render).
+
     Args:
         to_email: Recipient email address
         subject: Email subject
         body: Email body (HTML)
-        
+
     Returns:
         bool: True if email was sent successfully, False otherwise
     """
-    if not all([SMTP_SERVER, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD]):
-        print("Email configuration is incomplete")
+    if not all([RESEND_API_KEY, SENDER_EMAIL]):
+        print("Email configuration is incomplete (need RESEND_API_KEY/EMAIL_PASSWORD and EMAIL_FROM)")
         return False
-    
-    try:
-        # Create message
-        message = MIMEMultipart()
-        message["From"] = SENDER_EMAIL
-        message["To"] = to_email
-        message["Subject"] = subject
-        
-        # Add body to email
-        message.attach(MIMEText(body, "html"))
-        
-        # Convert the message to a string
-        msg = message.as_string()
-        
-        # Connect to SMTP server and send email.
-        # Port 465 uses implicit TLS (SMTP_SSL); other ports use STARTTLS.
-        print(f"Connecting to {SMTP_SERVER}:{SMTP_PORT}...")
-        if SMTP_PORT == 465:
-            smtp = smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT)
-            smtp.set_debuglevel(1)  # Enable verbose logging
-            smtp.ehlo()
-        else:
-            smtp = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
-            smtp.set_debuglevel(1)  # Enable verbose logging
-            smtp.ehlo()
-            smtp.starttls()
 
-        print(f"Logging in as {SMTP_USERNAME}...")
-        smtp.login(SMTP_USERNAME, SMTP_PASSWORD)
-        
-        print(f"Sending email from {SENDER_EMAIL} to {to_email}...")
-        smtp.sendmail(SENDER_EMAIL, to_email, msg)
-        smtp.quit()
-        
-        print(f"Email sent successfully to {to_email}")
-        return True
-        
+    try:
+        print(f"Sending email from {SENDER_EMAIL} to {to_email} via Resend API...")
+        response = requests.post(
+            RESEND_API_URL,
+            headers={
+                "Authorization": f"Bearer {RESEND_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "from": SENDER_EMAIL,
+                "to": [to_email],
+                "subject": subject,
+                "html": body,
+            },
+            timeout=15,
+        )
+
+        if response.status_code in (200, 201):
+            print(f"Email sent successfully to {to_email} (id: {response.json().get('id')})")
+            return True
+
+        print(f"Failed to send email: HTTP {response.status_code} - {response.text}")
+        return False
+
     except Exception as e:
         print(f"Failed to send email: {e}")
         print(f"Error type: {type(e).__name__}")
