@@ -9,7 +9,7 @@ from db.models import User, MentorInvite
 from utils.email_sender import send_mentor_invite_email
 
 # Where the mentor accept page lives on the frontend
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 INVITE_EXPIRY_DAYS = 7
 
 

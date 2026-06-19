@@ -26,7 +26,7 @@ Auth is **cookie-based sessions**, not JWT/bearer tokens.
 The backend currently uses `allow_origins=["*"]` **with** `allow_credentials=True`.
 Browsers **reject** credentialed requests against a wildcard origin. For the frontend to
 send the session cookie, the backend must echo your **exact** origin (e.g.
-`http://localhost:5173`). If you hit "CORS error" or the cookie isn't sent, tell the
+`http://localhost:3000`). If you hit "CORS error" or the cookie isn't sent, tell the
 backend dev to set the specific origin in `main.py` CORS config. (Server-to-server / curl
 is unaffected — this only bites browsers.)
 
