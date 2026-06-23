@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 from utils.auth import SECRET_KEY
-from routers import users, founders, mentors, funding, admin, events
+from routers import users, founders, mentors, funding, admin, events, newsletter, cohort
 from db.models import engine, Base
 from db.admin import setup_admin
 
@@ -63,6 +63,8 @@ app.include_router(mentors.router)
 app.include_router(funding.router)
 app.include_router(events.router)
 app.include_router(admin.router)
+app.include_router(newsletter.router)
+app.include_router(cohort.router)
 
 # Mount the SQLAdmin back-office at /admin
 setup_admin(app, engine)

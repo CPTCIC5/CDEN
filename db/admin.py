@@ -8,7 +8,7 @@ from sqladmin.authentication import AuthenticationBackend
 from starlette.requests import Request
 from starlette.responses import HTMLResponse
 
-from db.models import SessionLocal, User, FounderProfile, MentorProfile, FundingProgram, MentorInvite, Event, MentorMatch
+from db.models import SessionLocal, User, FounderProfile, MentorProfile, FundingProgram, MentorInvite, Event, MentorMatch, NewsletterSubscriber, Cohort
 from utils.auth import SECRET_KEY
 from utils.constants import ROLE_ADMIN
 from utils.invites import create_mentor_invite, invite_link
@@ -111,6 +111,23 @@ class MentorInviteAdmin(ModelView, model=MentorInvite):
     column_searchable_list = [MentorInvite.email]
 
 
+class NewsletterAdmin(ModelView, model=NewsletterSubscriber):
+    name = "Newsletter Subscriber"
+    name_plural = "Newsletter Subscribers"
+    column_list = [NewsletterSubscriber.id, NewsletterSubscriber.email, NewsletterSubscriber.created_at]
+    column_searchable_list = [NewsletterSubscriber.email]
+
+
+class CohortAdmin(ModelView, model=Cohort):
+    name = "Cohort Application"
+    name_plural = "Cohort Applications"
+    column_list = [
+        Cohort.id, Cohort.first_name, Cohort.last_name, Cohort.email,
+        Cohort.company_name, Cohort.sector, Cohort.created_at,
+    ]
+    column_searchable_list = [Cohort.email, Cohort.company_name]
+
+
 def _invite_page(message_html: str = "") -> HTMLResponse:
     """Minimal standalone page with the invite form (kept template-free for leanness)."""
     return HTMLResponse(f"""
@@ -178,5 +195,7 @@ def setup_admin(app, engine):
     admin.add_view(EventAdmin)
     admin.add_view(MentorMatchAdmin)
     admin.add_view(MentorInviteAdmin)
+    admin.add_view(NewsletterAdmin)
+    admin.add_view(CohortAdmin)
     admin.add_view(MentorInviteActionView)
     return admin

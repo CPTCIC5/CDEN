@@ -260,3 +260,46 @@ class MentorMatch(Base):
 
     def __repr__(self):
         return f"MentorMatch f{self.founder_user_id}-m{self.mentor_user_id} ({self.status})"
+
+
+class NewsletterSubscriber(Base):
+    """An email captured from the newsletter signup form."""
+    __tablename__ = 'newsletter_subscribers'
+
+    id = Column(Integer, primary_key=True)
+    email = Column(String(255), unique=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+
+    def __repr__(self):
+        return self.email
+
+
+class Cohort(Base):
+    """A founder's application to join a cohort.
+
+    Fields adapted from the TBDC founder intake form (CRM-internal fields and
+    file uploads omitted; pitch deck captured as a URL).
+    """
+    __tablename__ = 'cohorts'
+
+    id = Column(Integer, primary_key=True)
+    first_name = Column(String(120), nullable=False)
+    last_name = Column(String(120), nullable=True)
+    email = Column(String(255), nullable=False)
+    phone = Column(String(50), nullable=True)
+    linkedin_url = Column(String(500), nullable=True)
+    company_name = Column(String(255), nullable=True)
+    position = Column(String(120), nullable=True)            # position in company
+    location = Column(String(255), nullable=True)            # location of company
+    website = Column(String(500), nullable=True)
+    sector = Column(String(100), nullable=True)              # primary sector
+    received_funding = Column(Boolean, default=False)
+    annual_revenue = Column(Integer, nullable=True)          # CAD, past fiscal year
+    num_cofounders = Column(Integer, nullable=True)
+    program_goal = Column(Text, nullable=True)               # main benefit sought
+    pitch_deck_url = Column(String(500), nullable=True)
+    consent = Column(Boolean, default=False)                 # privacy policy consent
+    created_at = Column(DateTime, default=datetime.now)
+
+    def __repr__(self):
+        return f"{self.first_name} ({self.email})"
